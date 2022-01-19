@@ -15,7 +15,7 @@ from flask import Flask, request, jsonify
 
 ##################################################### -- <КОНФИГУРАЦИЯ>
 
-TOKEN = ""  # Ваш токен VK Me
+TOKEN = ""  # Ваш токен VK Admin/Kate mobile
 SECRET_KEY = ""  # Секретный ключ, из личных сообщений Хеллы
 
 FORBIDDEN_METHODS = []  # Методы, которые запрещены для использования, например: ['account.getProfileInfo'], рекомендую оставить пустым для более стабильной работы.
@@ -48,22 +48,22 @@ class HandlerHella(Flask):
         self.add_url_rule('/WebHook/vkMethod', 'APIHandler', self.APIHandler, methods=['POST'])
         self.add_url_rule('/WebHook/confirmationSecretKey', 'confirmation_secret_key', self.confirmation_secret_key, methods=['POST'])
 
-    def get_events(self):
+    def get_events_vk(self):
         try:
             return [event.raw for event in self.lp.check()]
-        except Captcha as cp:
-            return jsonify({"error": {"code": ErrorCode.CAPTCHA}})
-        except AuthError as ae:
-            return jsonify({"error": {"code": ErrorCode.AUTH}})
-        except ApiError as ar:
-            return jsonify({"error": {"code": ErrorCode.API}})
+        except Captcha:
+            return {"error": {"code": ErrorCode.CAPTCHA}}
+        except AuthError:
+            return {"error": {"code": ErrorCode.AUTH}}
+        except ApiError:
+            return {"error": {"code": ErrorCode.API}}
         except Exception as ex:
-            return jsonify({"error": {"code": ErrorCode.PYTHON, 'desc': str(ex)}})
+            return {"error": {"code": ErrorCode.PYTHON, 'desc': str(ex)}}
 
     def eventHandler(self):
         if request.args['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
-        return jsonify({"date": time.time(), 'events': self.get_events()})
+        return jsonify({"date": time.time(), 'events': self.get_events_vk()})
 
     def APIHandler(self):
         if request.json['secret_key'] != SECRET_KEY:
@@ -72,9 +72,9 @@ class HandlerHella(Flask):
             return jsonify({'error': {'code': ErrorCode.METHOD_IS_PROHIBITED}})
         try:
             return self.vk.method(request.json['method'], request.json['args'])
-        except Captcha as cp:
+        except Captcha:
             return jsonify({"error": {"code": ErrorCode.CAPTCHA}})
-        except ApiError as ar:
+        except ApiError:
             return jsonify({"error": {"code": ErrorCode.API}})
         except Exception as ex:
             return jsonify({"error": {"code": ErrorCode.PYTHON, 'desc': str(ex)}})
@@ -86,6 +86,5 @@ class HandlerHella(Flask):
         return jsonify({'success': 'ok'})
 
 
-if __name__ == '__main__':
-    app = HandlerHella()
-    app.run()
+app = HandlerHella()
+# app.run() # Убрать закраску (комментарий - #), если сервер pythonanywhere
