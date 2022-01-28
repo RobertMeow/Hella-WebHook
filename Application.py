@@ -31,10 +31,9 @@ class ErrorCode:
     API = 1
     CAPTCHA = 2
     PYTHON = 3
-    CAPTCHA = 4
-    AUTH = 5
-    INVALID_SECRET_KEY = 6
-    METHOD_IS_PROHIBITED = 7
+    AUTH = 4
+    INVALID_SECRET_KEY = 5
+    METHOD_IS_PROHIBITED = 6
 
 
 class HandlerHella(Flask):
@@ -51,11 +50,11 @@ class HandlerHella(Flask):
     def get_events_vk(self):
         try:
             return [event.raw for event in self.lp.check()]
-        except Captcha:
+        except Captcha as cp:
             return {"error": {"code": ErrorCode.CAPTCHA}}
-        except AuthError:
+        except AuthError as ae:
             return {"error": {"code": ErrorCode.AUTH}}
-        except ApiError:
+        except ApiError as ar:
             return {"error": {"code": ErrorCode.API}}
         except Exception as ex:
             return {"error": {"code": ErrorCode.PYTHON, 'desc': str(ex)}}
@@ -71,17 +70,17 @@ class HandlerHella(Flask):
         if request.json['method'] in FORBIDDEN_METHODS:
             return jsonify({'error': {'code': ErrorCode.METHOD_IS_PROHIBITED}})
         try:
-            return self.vk.method(request.json['method'], request.json['args'])
-        except Captcha:
+            return jsonify(self.vk.method(request.json['method'], request.json['args']))
+        except Captcha as cp:
             return jsonify({"error": {"code": ErrorCode.CAPTCHA}})
-        except ApiError:
+        except ApiError as ar:
             return jsonify({"error": {"code": ErrorCode.API}})
         except Exception as ex:
             return jsonify({"error": {"code": ErrorCode.PYTHON, 'desc': str(ex)}})
 
     @staticmethod
     def confirmation_secret_key():
-        if request.json['secret_key'] != SECRET_KEY:
+        if request.args['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
         return jsonify({'success': 'ok'})
 
