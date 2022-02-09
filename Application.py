@@ -37,17 +37,24 @@ class ErrorCode:
 
 
 class HandlerHella(Flask):
-    __slots__ = ['app', 'vk', 'lp']
+    __slots__ = ['app', 'vk', 'lp', 'auth']
 
     def __init__(self, import_name: str = __name__):
         self.app = super().__init__(import_name)
-        self.vk = VkApi(token=TOKEN, api_version='5.141')
-        self.lp = VkLongPoll(self.vk)
+        try:
+            self.vk = VkApi(token=TOKEN, api_version='5.141')
+            self.lp = VkLongPoll(self.vk)
+            self.auth = True
+        except AuthError:
+            self.auth = False
         self.add_url_rule('/WebHook/eventHandler', 'eventHandler', self.eventHandler, methods=['GET'])
         self.add_url_rule('/WebHook/vkMethod', 'APIHandler', self.APIHandler, methods=['POST'])
+        self.add_url_rule('/WebHook/httpRequest', 'httpRequest', self.httpRequest, methods=['POST'])
         self.add_url_rule('/WebHook/confirmationSecretKey', 'confirmation_secret_key', self.confirmation_secret_key, methods=['POST'])
 
     def get_events_vk(self):
+        if not self.auth:
+            return {"error": {"code": ErrorCode.AUTH}}
         try:
             return [event.raw for event in self.lp.check()]
         except Captcha as cp:
@@ -55,16 +62,20 @@ class HandlerHella(Flask):
         except AuthError as ae:
             return {"error": {"code": ErrorCode.AUTH}}
         except ApiError as ar:
-            return {"error": {"code": ErrorCode.API}}
+            return {"error": {"code": ErrorCode.API, "desc": ar.error}}
         except Exception as ex:
             return {"error": {"code": ErrorCode.PYTHON, 'desc': str(ex)}}
 
     def eventHandler(self):
+        if not self.auth:
+            return {"error": {"code": ErrorCode.AUTH}}
         if request.args['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
         return jsonify({"date": time.time(), 'events': self.get_events_vk()})
 
     def APIHandler(self):
+        if not self.auth:
+            return {"error": {"code": ErrorCode.AUTH}}
         if request.json['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
         if request.json['method'] in FORBIDDEN_METHODS:
@@ -74,12 +85,22 @@ class HandlerHella(Flask):
         except Captcha as cp:
             return jsonify({"error": {"code": ErrorCode.CAPTCHA}})
         except ApiError as ar:
-            return jsonify({"error": {"code": ErrorCode.API}})
+            return jsonify({"error": {"code": ErrorCode.API, 'desc': ar.error}})
         except Exception as ex:
             return jsonify({"error": {"code": ErrorCode.PYTHON, 'desc': str(ex)}})
 
+    def httpRequest(self):
+        if not self.auth:
+            return {"error": {"code": ErrorCode.AUTH}}
+        if request.json['secret_key'] != SECRET_KEY:
+            return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
+        response = self.vk.http.post(url=request.json['url'], params=request.json['params'], data=request.json['data'], files=request.json['files'])
+        return jsonify({"status": response.status_code, "text": response.text, 'content': response.content})
+
     @staticmethod
     def confirmation_secret_key():
+        if not self.auth:
+            return {"error": {"code": ErrorCode.AUTH}}
         if request.args['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
         return jsonify({'success': 'ok'})
