@@ -94,7 +94,7 @@ class HandlerHella(Flask):
             return {"error": {"code": ErrorCode.AUTH}}
         if request.json['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
-        response = self.vk.http.post(url=request.json['url'], params=request.json['params'], data=request.json['data'], files=request.json['files'])
+        response = self.vk.http.post(url=request.json['url'], params=request.json['params'], data=request.data, files=request.files)
         return jsonify({"status": response.status_code, "text": response.text, 'content': response.content})
 
     @staticmethod
