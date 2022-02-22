@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import time
@@ -11,7 +12,7 @@ from vk_api.longpoll import VkLongPoll
 from vk_api.exceptions import Captcha, ApiError, AuthError
 from vk_api import VkApi
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 
 ##################################################### -- <КОНФИГУРАЦИЯ>
 
@@ -51,6 +52,7 @@ class HandlerHella(Flask):
         self.add_url_rule('/WebHook/vkMethod', 'APIHandler', self.APIHandler, methods=['POST'])
         self.add_url_rule('/WebHook/httpRequest', 'httpRequest', self.httpRequest, methods=['POST'])
         self.add_url_rule('/WebHook/confirmationSecretKey', 'confirmation_secret_key', self.confirmation_secret_key, methods=['POST'])
+        self.register_error_handler(404, self.error404)
 
     def get_events_vk(self):
         if not self.auth:
@@ -92,19 +94,23 @@ class HandlerHella(Flask):
     def httpRequest(self):
         if not self.auth:
             return {"error": {"code": ErrorCode.AUTH}}
-        if request.json['secret_key'] != SECRET_KEY:
+        if request.args['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
-        response = self.vk.http.post(url=request.json['url'], params=request.json['params'], data=request.data, files=request.files)
-        return jsonify({"status": response.status_code, "text": response.text, 'content': response.content})
 
-    @staticmethod
-    def confirmation_secret_key():
+        response = self.vk.http.post(url=request.args['url'], files=[('file', ('file.png', request.files['file'].stream))])
+        return jsonify({"status": response.status_code, "text": response.text, 'content': str(response.content)})
+
+    def confirmation_secret_key(self):
         if not self.auth:
             return {"error": {"code": ErrorCode.AUTH}}
         if request.args['secret_key'] != SECRET_KEY:
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
         return jsonify({'success': 'ok'})
 
+    @staticmethod
+    def error404(error):
+        return redirect('https://hella.team')
+
 
 app = HandlerHella()
-# app.run() # Убрать закраску (комментарий - #), если сервер pythonanywhere
+# app.run()  # Убрать закраску (комментарий - #), если сервер pythonanywhere
