@@ -16,6 +16,7 @@ from flask import Flask, request, jsonify, redirect
 ##################################################### -- <КОНФИГУРАЦИЯ>
 
 TOKEN = ""  # Ваш токен VK Admin/Kate mobile
+CONFIRM_CODE = ""
 SECRET_KEY = ""  # Секретный ключ, из личных сообщений Хеллы
 
 FORBIDDEN_METHODS = []  # Методы, которые запрещены для использования, например: ['account.getProfileInfo'], рекомендую оставить пустым для более стабильной работы.
@@ -51,6 +52,7 @@ class HandlerHella(Flask):
         self.add_url_rule('/WebHook/vkMethod', 'APIHandler', self.APIHandler, methods=['POST'])
         self.add_url_rule('/WebHook/httpRequest', 'httpRequest', self.httpRequest, methods=['POST'])
         self.add_url_rule('/WebHook/confirmationSecretKey', 'confirmation_secret_key', self.confirmation_secret_key, methods=['POST'])
+        self.add_url_rule('/WebHook/confirmationCode', 'confirmationCode', self.confirmationCode, methods=['POST'])
         self.register_error_handler(404, self.error404)
 
     def get_events_vk(self):
@@ -106,10 +108,17 @@ class HandlerHella(Flask):
             return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
         return jsonify({'success': 'ok'})
 
+    def confirmationCode(self):
+        if not self.auth:
+            return {"error": {"code": ErrorCode.AUTH}}
+        if request.args['secret_key'] != SECRET_KEY:
+            return jsonify({"error": {"code": ErrorCode.INVALID_SECRET_KEY}})
+        return CONFIRM_CODE
+
     @staticmethod
     def error404(error):
         return redirect('https://hella.team')
 
 
 app = HandlerHella()
-# app.run()  # Убрать закраску (комментарий - #), если сервер pythonanywhere
+# app.run(host='0.0.0.0')  # Убрать закраску (комментарий - #), если сервер не pythonanywhere
