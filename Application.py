@@ -16,8 +16,8 @@ from flask import Flask, request, jsonify, redirect
 ##################################################### -- <КОНФИГУРАЦИЯ>
 
 TOKEN = ""  # Ваш токен VK Admin/Kate mobile
-CONFIRM_CODE = ""
-SECRET_KEY = ""  # Секретный ключ, из личных сообщений Хеллы
+CONFIRM_CODE = ""  # hella.team/webhook
+SECRET_KEY = ""  # Секретный ключ, из cвоей головы
 
 FORBIDDEN_METHODS = []  # Методы, которые запрещены для использования, например: ['account.getProfileInfo'], рекомендую оставить пустым для более стабильной работы.
 
@@ -61,8 +61,8 @@ class HandlerHella(Flask):
         try:
             return [event.raw for event in self.lp.check()]
         except Captcha as cp:
-            return {"error": {"code": ErrorCode.CAPTCHA}}
-        except AuthError as ae:
+            return {"error": {"code": ErrorCode.CAPTCHA, "desc": cp.sid}}
+        except AuthError:
             return {"error": {"code": ErrorCode.AUTH}}
         except ApiError as ar:
             return {"error": {"code": ErrorCode.API, "desc": ar.error}}
@@ -86,7 +86,7 @@ class HandlerHella(Flask):
         try:
             return jsonify(self.vk.method(request.json['method'], request.json['args']))
         except Captcha as cp:
-            return jsonify({"error": {"code": ErrorCode.CAPTCHA}})
+            return jsonify({"error": {"code": ErrorCode.CAPTCHA, "desc": cp.sid}})
         except ApiError as ar:
             return jsonify({"error": {"code": ErrorCode.API, 'desc': ar.error}})
         except Exception as ex:
